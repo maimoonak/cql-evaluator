@@ -17,13 +17,39 @@ import org.hl7.fhir.instance.model.api.IBaseBundle;
 import org.hl7.fhir.instance.model.api.IBaseDatatype;
 import org.hl7.fhir.instance.model.api.IBaseParameters;
 import org.hl7.fhir.instance.model.api.IBaseResource;
-import org.hl7.fhir.r4.model.*;
+import org.hl7.fhir.r4.model.ActivityDefinition;
+import org.hl7.fhir.r4.model.Base;
+import org.hl7.fhir.r4.model.BooleanType;
+import org.hl7.fhir.r4.model.Bundle;
+import org.hl7.fhir.r4.model.Bundle.BundleType;
+import org.hl7.fhir.r4.model.CanonicalType;
+import org.hl7.fhir.r4.model.CarePlan;
+import org.hl7.fhir.r4.model.CodeableConcept;
+import org.hl7.fhir.r4.model.Coding;
+import org.hl7.fhir.r4.model.DataRequirement;
+import org.hl7.fhir.r4.model.DomainResource;
+import org.hl7.fhir.r4.model.Expression;
+import org.hl7.fhir.r4.model.Extension;
+import org.hl7.fhir.r4.model.Goal;
+import org.hl7.fhir.r4.model.IdType;
+import org.hl7.fhir.r4.model.MetadataResource;
+import org.hl7.fhir.r4.model.ParameterDefinition;
+import org.hl7.fhir.r4.model.Parameters;
 import org.hl7.fhir.r4.model.Parameters.ParametersParameterComponent;
+import org.hl7.fhir.r4.model.PlanDefinition;
 import org.hl7.fhir.r4.model.PlanDefinition.ActionRelationshipType;
-import org.hl7.fhir.r4.model.PlanDefinition.PlanDefinitionActionConditionComponent;
-import org.hl7.fhir.r4.model.PlanDefinition.PlanDefinitionActionRelatedActionComponent;
+import org.hl7.fhir.r4.model.PrimitiveType;
+import org.hl7.fhir.r4.model.Reference;
+import org.hl7.fhir.r4.model.RequestGroup;
 import org.hl7.fhir.r4.model.RequestGroup.RequestIntent;
 import org.hl7.fhir.r4.model.RequestGroup.RequestStatus;
+import org.hl7.fhir.r4.model.Resource;
+import org.hl7.fhir.r4.model.StringType;
+import org.hl7.fhir.r4.model.Task;
+import org.hl7.fhir.r4.model.Type;
+import org.hl7.fhir.r4.model.UriType;
+import org.hl7.fhir.r4.model.PlanDefinition.PlanDefinitionActionConditionComponent;
+import org.hl7.fhir.r4.model.PlanDefinition.PlanDefinitionActionRelatedActionComponent;
 import org.opencds.cqf.cql.engine.runtime.DateTime;
 import org.opencds.cqf.cql.evaluator.activitydefinition.r4.ActivityDefinitionProcessor;
 import org.opencds.cqf.cql.evaluator.expression.ExpressionEvaluator;
@@ -193,7 +219,7 @@ public class PlanDefinitionProcessor {
     if (action.hasDefinitionCanonicalType()) {
       logger.debug("Resolving definition " + action.getDefinitionCanonicalType().getValue());
       CanonicalType definition = action.getDefinitionCanonicalType();
-      switch (getResourceName(definition)) {
+      switch (getResourceName(definition, session.planDefinition)) {
         case "PlanDefinition":
           applyNestedPlanDefinition(session, definition, action);
           break;
@@ -521,12 +547,15 @@ public class PlanDefinitionProcessor {
     return ((StringType) result).asStringValue();
   }
 
-  protected static String getResourceName(CanonicalType canonical) {
+  protected String getResourceName(CanonicalType canonical, MetadataResource resource) {
     if (canonical.hasValue()) {
-      String id = canonical.getValue();
+      var id = canonical.getValue();
       if (id.contains("/")) {
         id = id.replace(id.substring(id.lastIndexOf("/")), "");
         return id.contains("/") ? id.substring(id.lastIndexOf("/") + 1) : id;
+      }
+      else if (id.startsWith("#")){
+        return resolveContained(resource, id).getResourceType().name();
       }
       return null;
     }
